@@ -90,7 +90,7 @@ export const  logIn = async (req, res)=>{
 
 export const logOut = async (req, res)=>{
   try {
-    res.clearCookie(token)
+    res.clearCookie("token")
     res.status(200).json({message:"logout successfully"})
   } catch (error) {
     res.status(500).json(error)
