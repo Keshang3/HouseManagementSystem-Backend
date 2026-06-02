@@ -1,5 +1,5 @@
 import express from 'express'
-import { vendorSignup, vendorLogIn, uploadKycData, completeVendorProfile, refillVendorSignup, refillKyc, uploadAllDocuments, extradata, getVendorStatus, getVendorProfile, increaseRevenue, getAverageRating, vendorForgotPassword, vendorResetPassword } from '../controllers/vendorAuth.controller.js';
+import { vendorSignup, vendorLogIn, uploadKycData, completeVendorProfile, refillVendorSignup, refillKyc, uploadAllDocuments, extradata, getVendorStatus, getVendorProfile, increaseRevenue, getAverageRating, vendorForgotPassword, vendorResetPassword, vendorGoogleAuth, getLeaderboard } from '../controllers/vendorAuth.controller.js';
 import { upload } from '../config/multer.js';
 import { vendorAuth } from '../middlwares/vendorAuth.middleware.js';
 import { setAvailability, getAvailability, setAvailabilitySignup } from '../controllers/vendorAvailability.controllers.js';
@@ -14,6 +14,7 @@ import { updateVendorProfileImage, updateVendorProfileInfo } from '../controller
 
 const vendorRoutes = express.Router();
 
+vendorRoutes.get("/leaderboard", getLeaderboard);
 vendorRoutes.get("/profile", vendorAuth, getVendorProfile);
 vendorRoutes.put("/profile/image", vendorAuth, memoryUpload.single("profileImage"), updateVendorProfileImage);
 vendorRoutes.put("/profile/info", vendorAuth, updateVendorProfileInfo);
@@ -21,6 +22,7 @@ vendorRoutes.post('/signup', vendorSignup);
 vendorRoutes.post('/login', vendorLogIn);
 vendorRoutes.post('/forgotpassword', vendorForgotPassword);
 vendorRoutes.post('/resetpassword/:token', vendorResetPassword);
+vendorRoutes.post('/google-auth', vendorGoogleAuth);
 vendorRoutes.put('/kyc/:id', uploadKycData);
 // vendorRoutes.post('/:id/front-photo', upload.single("citizenshipFrontPhoto"), uploadFrontPhoto);
 // vendorRoutes.post('/:id/back-photo', upload.single("citizenshipBackPhoto"), uploadBackPhoto);

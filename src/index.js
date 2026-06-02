@@ -16,6 +16,7 @@ import gamificationRouter from "./routes/gamification.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import serviceRoutes from "./routes/service.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import complaintRoutes from "./routes/complaint.routes.js";
 
 import http from "http";
 import { setupSocket } from "./socket.js";
@@ -42,6 +43,7 @@ app.use("/api/gamification", gamificationRouter);
 app.use("/api/messages", messageRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 setupSocket(server);
 

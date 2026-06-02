@@ -1,5 +1,6 @@
 import Vendor from "../models/vendor.model.js";
 import jwt from "jsonwebtoken";
+import { io } from "../socket.js";
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
@@ -77,5 +78,42 @@ export const rejectVendor = async (req, res) => {
   }
 };
 
+export const blockVendor = async (req, res) => {
+  try {
+    const blockedVendor = await Vendor.findByIdAndUpdate(
+      req.params.id,
+      { status: "blocked" },
+      { new: true }
+    );
+    if (!blockedVendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+    
+    // Notify the vendor to log them out immediately
+    if (io) {
+        io.to(req.params.id.toString()).emit("account_blocked");
+    }
 
+    res.json({ success: true, message: "Vendor blocked", vendor: blockedVendor });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
 
+export const unblockVendor = async (req, res) => {
+  try {
+    const unblockedVendor = await Vendor.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    if (!unblockedVendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+    res.json({ success: true, message: "Vendor unblocked", vendor: unblockedVendor });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};

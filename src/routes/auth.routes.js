@@ -11,6 +11,7 @@ import {
   updatePassword,
   toggleFavourite,
   getFavourites,
+  googleAuth,
 } from "../controllers/auth.controllers.js";
 import { createBooking, getUserBookings, getBookingDetails, updateBookingStatus, userConfirmCompletion } from "../controllers/booking.controller.js";
 import { upload } from '../middlwares/multer.js';
@@ -36,6 +37,7 @@ authRouter.put("/update-password", authMiddleware, updatePassword);
 authRouter.post("/login", logIn);
 authRouter.post("/forgotpassword", forgotPassword);
 authRouter.post("/resetpassword/:token", resetPassword);
+authRouter.post("/google-auth", googleAuth);
 
 authRouter.post("/createbooking", authMiddleware, createBooking);
 

@@ -137,8 +137,20 @@ export const createService = async (req, res) => {
       });
     }
 
+    // Check for existing service (case-insensitive)
+    const existingService = await Service.findOne({ 
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") } 
+    });
+
+    if (existingService) {
+      return res.status(400).json({
+        success: false,
+        message: "Service already exists. Please use a different service name.",
+      });
+    }
+
     const serviceData = {
-      name,
+      name: name.trim(),
       isActive: isActive !== undefined ? isActive : true,
     };
 
@@ -177,6 +189,21 @@ export const updateService = async (req, res) => {
         success: false,
         message: "Service not found",
       });
+    }
+
+    // Check for duplicate name (case-insensitive) if name is being updated
+    if (updateData.name) {
+      const existingService = await Service.findOne({
+        _id: { $ne: id },
+        name: { $regex: new RegExp(`^${updateData.name.trim()}$`, "i") }
+      });
+      if (existingService) {
+        return res.status(400).json({
+          success: false,
+          message: "Service already exists. Please use a different service name.",
+        });
+      }
+      updateData.name = updateData.name.trim();
     }
 
     const updatedService = await Service.findByIdAndUpdate(

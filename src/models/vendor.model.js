@@ -41,7 +41,7 @@ const vendorSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "blocked"],
       default: "pending",
     },
     totalRatings: {
@@ -59,6 +59,15 @@ const vendorSchema = new mongoose.Schema(
     revenue: {
       type: Number,
       default: 0,
+    },
+    currentBadge: {
+      type: String,
+      enum: ["Platinum Vendor", "Gold Vendor", "Silver Vendor", "Bronze Vendor", null],
+      default: null,
+    },
+    achievements: {
+      type: [String],
+      default: [],
     },
     location: {
       type: {

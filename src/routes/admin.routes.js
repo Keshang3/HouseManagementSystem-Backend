@@ -4,6 +4,8 @@ import {
   pendingVendor,
   approveVendor,
   rejectVendor,
+  blockVendor,
+  unblockVendor,
   getAllVendors
 } from "../controllers/adminAuth.controllers.js";
 import adminAuth from "../middlwares/adminAuth.middleware.js";
@@ -19,6 +21,8 @@ router.get('/pending', pendingVendor);
 router.get('/vendors', getAllVendors);
 router.patch('/approve/:id', approveVendor);
 router.patch('/reject/:id', rejectVendor);
+router.patch('/block/:id', blockVendor);
+router.patch('/unblock/:id', unblockVendor);
 
 // Booking management
 router.get('/bookings', adminGetAllBookings);

@@ -20,7 +20,7 @@ export const sendApplicationConfirmation = async (applicantEmail, applicantName,
         <h2 style="color: #4CAF50;">Application Submitted!</h2>
         <p>Hi ${applicantName},</p>
         <p>Thank you for applying for the <strong>${jobTitle}</strong> position at Home Service Provider.</p>
-        <p>We have received your application and resume. Our team will review your profile and get back to you within 5–7 business days if your qualifications match our requirements.</p>
+        <p>We have received your appxlication and resume. Our team will review your profile and get back to you within 5–7 business days if your qualifications match our requirements.</p>
         <p>Best regards,<br>The Hiring Team</p>
       </div>
     `,

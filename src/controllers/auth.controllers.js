@@ -11,6 +11,9 @@ import crypto from "crypto";
 import { uploadImage } from "../config/imagekit.js";
 import { createAndEmitNotification } from "./notification.controller.js";
 import { processDailyLogin } from "../services/gamification.service.js";
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID");
 
 export const signUp = async (req, res) => {
   console.log("=== SIGNUP START ===");
@@ -429,5 +432,84 @@ export const getFavourites = async (req, res) => {
   } catch (error) {
     console.error("Get favourites error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ message: "No credential provided" });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID",
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub } = payload;
+    
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      // User doesn't exist, create a new one
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      
+      const safeName = name || "user";
+      const userName = safeName.toLowerCase().replace(/[^a-z0-9]/g, "") + crypto.randomBytes(2).toString("hex");
+      
+      user = await User.create({
+        fullName: name,
+        email: email,
+        userName: userName,
+        password: hashedPassword,
+        isVerified: true,
+        profileImage: {
+          url: picture,
+          fileId: ""
+        }
+      });
+    } else if (!user.isVerified) {
+      // If they exist but aren't verified yet, verify them since Google authenticated them
+      user.isVerified = true;
+      if (!user.profileImage?.url) {
+        user.profileImage = { url: picture, fileId: "" };
+      }
+      await user.save();
+    }
+    
+    const token = generateToken(user._id);
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENVIRONMENT === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    await createAndEmitNotification(user._id, "User", "You have successfully logged in with Google", "INFO");
+    await processDailyLogin(user._id);
+
+    return res.status(200).json({
+      token,
+      success: true,
+      message: "Google Login Successful",
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        userName: user.userName,
+        profileImage: user.profileImage,
+        phoneNo: user.phoneNo,
+        address: user.address,
+      },
+    });
+
+  } catch (error) {
+    console.error("Google Auth error:", error);
+    res.status(500).json({ message: "Google authentication failed", error: error.message });
   }
 };

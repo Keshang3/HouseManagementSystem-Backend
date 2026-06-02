@@ -5,7 +5,9 @@ import crypto from "crypto";
 import sendResetEmail from "../utils/SendResetEmail.js";
 import { createAndEmitNotification } from "./notification.controller.js";
 import { uploadImage } from "../config/imagekit.js";
+import { OAuth2Client } from "google-auth-library";
 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID");
 
 export const vendorSignup = async (req, res) => {
   try {
@@ -67,6 +69,9 @@ export const vendorLogIn = async (req, res) => {
 
     if (vendor.status === "rejected")
       return res.status(403).json({ message: "Your account was rejected" });
+
+    if (vendor.status === "blocked")
+      return res.status(403).json({ message: "Your account has been blocked by the admin" });
 
     const token = jwt.sign(
       { id: vendor._id, role: "vendor" },
@@ -565,5 +570,109 @@ export const updateVendorProfileInfo = async (req, res) => {
   } catch (error) {
     console.error("Update vendor profile info error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const vendorGoogleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ message: "No credential provided" });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID",
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name, given_name, family_name, picture } = payload;
+    
+    let vendor = await Vendor.findOne({ email });
+    
+    if (!vendor) {
+      // Create new vendor
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      
+      const safeName = name || "Vendor";
+      const firstName = given_name || safeName.split(' ')[0];
+      const lastName = family_name || (safeName.split(' ').length > 1 ? safeName.split(' ').slice(1).join(' ') : "");
+      
+      vendor = await Vendor.create({
+        firstName,
+        lastName,
+        email,
+        bio: "",
+        password: hashedPassword,
+        status: "pending", // Vendors might still need approval
+        currentStep: 1,
+        citizenshipNumber: "",
+        citizenIssueDate: null,
+        citizenshipFrontPhoto: "",
+        citizenshipBackPhoto: "",
+        certificate: "",
+        nationality: "",
+        city: "",
+        province: "",
+        postalCode: "",
+        phoneNo: "",
+        skills: [],
+        vendorType: "general",
+        profileImage: {
+          url: picture,
+          fileId: ""
+        }
+      });
+      
+      return res.status(201).json({
+        message: "Vendor account created! Please complete your profile.",
+        vendorID: vendor._id,
+        currentStep: vendor.currentStep,
+      });
+    }
+
+    // Existing vendor login
+    if (vendor.status === "pending")
+      return res.status(403).json({ message: "Your account is under review" });
+
+    if (vendor.status === "rejected")
+      return res.status(403).json({ message: "Your account was rejected" });
+
+    if (vendor.status === "blocked")
+      return res.status(403).json({ message: "Your account has been blocked by the admin" });
+
+    const token = jwt.sign(
+      { id: vendor._id, role: "vendor" },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    await createAndEmitNotification(vendor._id, "Vendor", "You have successfully logged in with Google", "INFO");
+
+    res.json({ message: "Vendor login successful", token, vendor });
+
+  } catch (error) {
+    console.error("Vendor Google Auth error:", error);
+    res.status(500).json({ message: "Google authentication failed", error: error.message });
+  }
+};
+
+// Gamification Leaderboard
+export const getLeaderboard = async (req, res) => {
+  try {
+    // Top 10 vendors sorted by averageRating (desc), then totalRatings (desc)
+    const topVendors = await Vendor.find({ 
+      status: "approved", 
+      numberOfReviews: { $gt: 0 } 
+    })
+      .select("firstName lastName profileImage averageRating numberOfReviews currentBadge achievements skills city")
+      .sort({ averageRating: -1, totalRatings: -1 })
+      .limit(10);
+
+    res.status(200).json({ success: true, leaderboard: topVendors });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

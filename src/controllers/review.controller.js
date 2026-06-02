@@ -60,9 +60,52 @@ export const createReview = async (req, res) => {
     );
 
     if (updatedVendor) {
+      const previousBadge = updatedVendor.currentBadge;
+      const prevAchievements = [...(updatedVendor.achievements || [])];
+      
       // Recalculate averageRating
-      updatedVendor.averageRating = updatedVendor.totalRatings / updatedVendor.numberOfReviews;
+      const avgRating = updatedVendor.totalRatings / updatedVendor.numberOfReviews;
+      updatedVendor.averageRating = Number(avgRating.toFixed(2));
+      
+      // Determine Badge
+      let newBadge = null;
+      if (updatedVendor.averageRating >= 4.8) {
+        newBadge = "Platinum Vendor";
+      } else if (updatedVendor.averageRating >= 4.5) {
+        newBadge = "Gold Vendor";
+      } else if (updatedVendor.averageRating >= 4.0) {
+        newBadge = "Silver Vendor";
+      } else if (updatedVendor.averageRating >= 3.0) {
+        newBadge = "Bronze Vendor";
+      }
+      updatedVendor.currentBadge = newBadge;
+
+      // Determine Achievements
+      if (!updatedVendor.achievements) updatedVendor.achievements = [];
+      
+      // Top Rated Vendor
+      if (updatedVendor.averageRating >= 4.8 && updatedVendor.numberOfReviews >= 20 && !updatedVendor.achievements.includes("Top Rated Vendor")) {
+        updatedVendor.achievements.push("Top Rated Vendor");
+      }
+      
+      // Rising Star
+      if (updatedVendor.averageRating >= 4.5 && updatedVendor.totalJobs <= 10 && !updatedVendor.achievements.includes("Rising Star")) {
+        updatedVendor.achievements.push("Rising Star");
+      }
+
       await updatedVendor.save();
+
+      // Emit notifications for Gamification
+      if (newBadge !== previousBadge && newBadge) {
+        await createAndEmitNotification(booking.vendorId, "Vendor", `Congratulations! You have earned the ${newBadge} badge!`, "SUCCESS");
+      }
+      
+      if (updatedVendor.achievements.length > prevAchievements.length) {
+        const newAchievements = updatedVendor.achievements.filter(a => !prevAchievements.includes(a));
+        for (const achievement of newAchievements) {
+          await createAndEmitNotification(booking.vendorId, "Vendor", `Achievement Unlocked: ${achievement}!`, "SUCCESS");
+        }
+      }
     }
 
     // Gamification: Add points to user for leaving a review (rating + review text)
@@ -121,8 +164,7 @@ export const getFeaturedReviews = async (req, res) => {
     const reviews = await Review.find({ rating: { $gte: 4 } })
       .populate({ path: 'userId', model: 'User', select: 'fullName userName profileImage' })
       .populate("vendorId", "service")
-      .sort({ createdAt: -1 })
-      .limit(6);
+      .sort({ createdAt: -1 });
     res.status(200).json({ reviews });
   } catch (error) {
     res.status(500).json({ message: error.message });
